@@ -8,35 +8,32 @@
 
 
 
-import math,re
-from pymongo import DESCENDING
+import math,re,ignorewords
+
 __VERSION__ = (0,1)
-__IGNORED_EN_WORDS__ = set(['the','of','to','and','a','in','is','it',''])
 __EN_WORD_CUT__ = re.compile(r"\W*")
 __CN_WORD_CUT__ = re.compile(ur"[^\u4E00-\u9FA5a-zA-Z0-9+#]*")
+__WORD_MIN_SCORE__ = 0.001
 
 
 def versionstring():
     return '.'.join(__VERSION__)
 
-
-class Qur(object):
-    def __init__(self, db, name="",jieba_word_cut=False):
-        super(Qur, self).__init__()
+class DBStruct:
+    def __init__(self, db,name):
         self.db        = db
+        self.words     = db["qur_%s_words"     % name]
+        self.relations = db["qur_%s_relations" % name]
+        self.ensureIndex()
 
-        self.words     = db["qur_%s_words" % name]
+    def ensureIndex(self):
+        self.words.ensure_index({"word":1,"freq":1})
+        self.relations.ensure_index({"word":1,"score":-1})
+        self.relations.ensure_index({"entry_id":1})
 
-        datac          = db["qur_%s_relations" % data]
-        self.data      = datac.find_one()
-        if self.data == None:
-            import datetime
-            datac.insert({
-                "texts_count":0,
-                "qur_version": version(),
-                "created_at": datetime.datetime.utcnow(),
-                })
-            self.data = datac.find_one()
+class GenericIndexer(DBStruct):
+    def __init__(self, db, name="",jieba_word_cut=False):
+        super(DBStruct, self).__init__(db,name)
 
         if jieba_word_cut:
             import jieba
@@ -44,8 +41,20 @@ class Qur(object):
         else:
             self.jieba = None
 
-    def indexText(self,entry,text):
-        pass
+    def indexText(self,entry_id,text):
+        words = self.seperateWords(text)
+        scores = self.calculateWordScore(words)
+        inserts =[]
+        for w,s in scores:
+            self.words.update(
+                    {"word":w},
+                    {"$inc":{"freq":1}},
+                    False,True)
+            inserts.append(
+                    {"word":w,"score":s,"entry_id":entry_id})
+
+        self.relations.insert(inserts)
+        self.data
 
     def seperateWords(self,text):
         text = test.lower().strip()
@@ -63,12 +72,28 @@ class Qur(object):
     def calculateWordScore(self,words):
         wordsdict = {}
         for w in words:
-            if w in __IGNORED_EN_WORDS__ : 
+            if len(w) > 20:
+                continue
+            elif w in ignorewords.EN:
+                continue
+            elif self.jieba and w in ignorewords.CN:
                 continue
             elif wordsdict.get(w):
                 wordsdict[w]+=1
             else:
                 wordsdict[w] = 1
-        maxfreq = max(wordsdict.values())
-        return [(k,float(v)/maxfreq) for k,v in wordsdict.iteritems()]
 
+        maxfreq = float(max(wordsdict.values()))
+        ret = []
+        for k,freq in wordsdict.iteritems():
+            s=freq/maxfreq
+            if s < __WORD_MIN_SCORE__:
+                del wordsdict[k]
+            else:
+                ret.append((k,s))
+        return ret 
+
+class GenericSearcher(DBStruct):
+    def __init__(self,db,name):
+        super(DBStruct, self).__init__(db,name)
+        
