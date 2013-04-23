@@ -23,6 +23,7 @@ You can use GenericIndexer to make index for a text, an entry id should be provi
 您可以使用 GenericIndexer 为一篇文章索引，您需要为这段文字指定一个entry id，目前的版本不会自己保存文本，它只会为文本制作索引并保存一个指向entry id的指针。当这篇文章在搜索中被匹配后，对应的entry id将会被返回。
 
 example:
+
     import qur
     
     # create an indexer instance 创建一个索引对象
@@ -45,6 +46,7 @@ GenericSearcher is for searching. The initial function accepts the same parms as
 GenericSearcher 用来搜索，其构造函数接受与GenericIndexer相同的参数，您应该给搜索器传入索引器相同的参数，否则它将无法返回搜索结果。
 
 example:
+
     import qur
     searcher = qur.GenericIndexer(db,"test")
     
@@ -62,6 +64,7 @@ Qur use [jieba](https://github.com/fxsjy/jieba) as Chinese word cut engine , to 
 Qur 使用[jieba](https://github.com/fxsjy/jieba)作为中文分词引擎，激活中文索引和搜索功能，请导入jieba模块并将其作为初始化索引器和搜索器的第三个参数。
 
 example:
+
     import qur,jieba
 
     indexer  = qur.GenericIndexer(db,"test",jieba)
