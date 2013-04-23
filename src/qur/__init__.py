@@ -13,6 +13,7 @@ from bson.code import Code
 
 __VERSION__ = (0,1)
 __EN_WORD_CUT__ = re.compile(r"\W*")
+__CN_WORD_CUT__ = re.compile(ur"^[\u4E00-\u9FA5a-zA-Z0-9+#]+")
 __WORD_MIN_SCORE__ = 0.001
 __SEARCH_WORDS_LIMIT__ = 3
 
@@ -20,21 +21,26 @@ __SEARCH_WORDS_LIMIT__ = 3
 def versionstring():
     return '.'.join(__VERSION__)
 
-class DBStruct:
+class DBStruct(object):
     def __init__(self, db,name):
+        super(DBStruct,self).__init__()
         self.db        = db
         self.words     = db["qur_%s_words"     % name]
         self.relations = db["qur_%s_relations" % name]
         self.ensureIndex()
 
     def ensureIndex(self):
-        self.words.ensure_index({"word":1,"freq":1})
-        self.relations.ensure_index({"word":1,"score":-1})
-        self.relations.ensure_index({"entry_id":1,"score":-1})
+        self.words.ensure_index([("word",1),("freq",1)])
+        self.relations.ensure_index([ ("word",1),("score",-1) ])
+        self.relations.ensure_index([("entry_id",1),("score",-1)])
+
+    def clearData(self):
+        self.words.drop()
+        self.relations.drop()
 
 class GenericIndexer(DBStruct):
-    def __init__(self, db, name="",word_cut=False):
-        super(DBStruct, self).__init__(db,name)
+    def __init__(self, db, name="",word_cut=None):
+        super(GenericIndexer, self).__init__(db,name)
 
         self.word_cut = word_cut
 
@@ -46,20 +52,19 @@ class GenericIndexer(DBStruct):
             self.words.update(
                     {"word":w},
                     {"$inc":{"freq":1}},
-                    False,True)
+                    upsert=True)
             inserts.append(
                     {"word":w,"score":s,"entry_id":entry_id})
 
         self.relations.insert(inserts)
-        self.data
 
     def seperateWords(self,text):
-        text = test.lower().strip()
+        text = text.lower().strip()
         if self.word_cut:
-            sentences=__EN_WORD_CUT__.split(unicode(text))
+            sentences=__CN_WORD_CUT__.split(text.decode("utf8"))
             words=[]
             for s in sentences:
-                for w in word_cut.cut(s):
+                for w in self.word_cut.cut(s):
                     words.append(w)
             return words
         else:
@@ -84,37 +89,35 @@ class GenericIndexer(DBStruct):
         ret = []
         for k,freq in wordsdict.iteritems():
             s=freq/maxfreq
-            if s < __WORD_MIN_SCORE__:
-                del wordsdict[k]
-            else:
+            if s > __WORD_MIN_SCORE__:
                 ret.append((k,s))
         return ret 
 
 class GenericSearcher(DBStruct):
-    def __init__(self,db,name):
-        super(DBStruct, self).__init__(db,name,word_cut)
+    def __init__(self,db,name,word_cut=None):
+        super(GenericSearcher, self).__init__(db,name)
         self.word_cut = word_cut
 
-    def processSearchString(self,searchstring):
-        if word_cut:
-            words = word_cut.cut(searchstring)
-        else:
-            words = __EN_WORD_CUT__.split(searchstring)
-        ws    = self.words.find({"word":{"$in":words}}).sort({"freq":1})
-        query = [ws.next()["word"] for x in range(__SEARCH_WORDS_LIMIT__)]
-        ret   = this.relations.aggregate(
-                {"$match":{"word":{"$in":query}}},
+    def search(self,string):
+        query = self.processSearchString(string)
+        ret   = self.relations.aggregate(
+                [{"$match":{"word":{"$in":query}}},
                 {"$group":{
                     "_id":{"entry_id":"$entry_id"},
                     "score":{"$sum":"$score"},
                     "matched_words":{"$addToSet":"$word"}
                     }},
                 {"$limit":100},
-                {"$sort":{"score":-1}});
-        if ret[ok]:
+                {"$sort":{"score":-1}}]);
+        if ret["ok"]:
             return ret["result"]
         else:
             return None
-            
 
-
+    def processSearchString(self,searchstring):
+        if self.word_cut:
+            words = self.word_cut.cut(searchstring)
+        else:
+            words = __EN_WORD_CUT__.split(searchstring)
+        ws    = list(self.words.find({"word":{"$in":list(words)}}).sort([("freq",1)]))
+        return [x["word"] for x in ws[:__SEARCH_WORDS_LIMIT__]]
