@@ -7,7 +7,9 @@
 
 from bs4 import BeautifulSoup
 from urlparse import urlsplit,urljoin,urlunsplit
-import requests,logging
+import requests,logging,time,random
+import gevent
+from gevent import monkey; monkey.patch_all()
 
 __MAX_FETCHED_URLS_CAPACITY__=10000
 __MAX_FETCH_QUEUE_CAPACITY__=100000
@@ -92,8 +94,28 @@ class Crawler(object):
         self.fetch_queue = []
         self.save_queue = []
         self.handlers = {}
+        self.interval = 1
         self._default_handler = None
         self._save_handler = None
+        self._timerecord={}
+
+    def __call_handler(self,handler,proxy):
+        tr = self._timerecord.get(proxy.splited_url.netloc)
+        if tr and (time.time()-tr) < self.interval:
+            logger.info("fetch frequency control: " + proxy.splited_url.netloc)
+            self.__random_sleep()
+            if not proxy.url in self.fetched_urls:
+                self.append_to_fetched_urls([proxy.url,])
+            return False
+        else:
+            ret = handler(proxy)
+            if ret:
+                self._timerecord[proxy.splited_url.netloc] = time.time()
+            return ret
+
+    def __random_sleep(self):
+        delay = random.random() * 15
+        gevent.sleep(delay)
 
     def get_handler_for(self,netloc):
         components=netloc.split(".")
@@ -109,13 +131,14 @@ class Crawler(object):
                     return dhandler.get('*')
         return self._default_handler
 
-    def handler_for(self,subdomain,domain,force_https=False):
+    def handler_for(self,subdomain,domain,force_https=False,interval=0):
         def wraped(handler):
             d = self.handlers.get(domain)
             if not d: self.handlers[domain]={}
             self.handlers[domain][(subdomain or '')] = handler
             return handler
         return wraped
+
 
     def default_handler(self,fn):
         self._default_handler = fn
@@ -126,11 +149,12 @@ class Crawler(object):
             return
 
         handler = self.get_handler_for(proxy.splited_url.netloc)
-        if handler and handler(proxy):
+        if handler:
             logger.info("processing url: "+url)
-            self.append_to_fetch_queue(proxy.links)
-            self.append_to_save_queue(proxy)
-            self.append_to_fetched_urls([proxy.url,])
+            if self.__call_handler(handler,proxy):
+                self.append_to_fetch_queue(proxy.links)
+                self.append_to_save_queue(proxy)
+                self.append_to_fetched_urls([proxy.url,])
         else:
             logger.warn("no handler for url : " + proxy.url)
 
@@ -159,5 +183,17 @@ class Crawler(object):
             self.save_queue=[]
 
     def crawl(self):
-        url = self.fetch_queue.pop()
-        self.process(url)
+        if self.fetch_queue:
+            url = self.fetch_queue.pop()
+            self.process(url)
+        else:
+            self.__random_sleep()
+
+    def repeat_crawl(self):
+        while True:
+            self.crawl()
+
+    def spawn(self,worker=5):
+        workers = [gevent.spawn(self.repeat_crawl) for i in range(worker)]
+        gevent.joinall(workers)
+        
