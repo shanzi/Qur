@@ -5,16 +5,23 @@
 # @date 2013-04-26
 
 
-from bs4 import BeautifulSoup
-from urlparse import urlsplit,urljoin,urlunsplit
-import requests,logging,time,random
+import logging,time,random,signal,sys
+import requests
 import gevent
-from gevent import monkey; monkey.patch_all()
+
+from urlparse import urlsplit,urljoin,urlunsplit
+from collections import deque
+
+from pyquery import PyQuery
+from gevent import monkey
+monkey.patch_all()
+
 
 __MAX_FETCHED_URLS_CAPACITY__=10000
 __MAX_FETCH_QUEUE_CAPACITY__=100000
 
-logging.basicConfig(level=logging.DEBUG)
+
+logging.basicConfig(level=logging.INFO)
 logger = logging
 
 class ContentProxy(object):
@@ -24,9 +31,9 @@ class ContentProxy(object):
         self.url=urlunsplit((o.scheme,o.netloc,o.path,o.query,'')).strip(" /#")
         self.splited_url=o
         self.redirect_count = 0
-        self.data={}
+        self._data={}
         self._content=None
-        self._bst=None
+        self._document=None
         self._links=None
 
     def fetch(self,url):
@@ -42,6 +49,7 @@ class ContentProxy(object):
                         "fetched url:" + url + \
                         ", redirect count: " + str(len(res.history)) + \
                         ", response length:" + str(len(res.text)))
+                res.encoding = "utf8"
                 self._content=res.text
                 self.redirect_count=len(res.history)
 
@@ -50,16 +58,16 @@ class ContentProxy(object):
             self.fetch(self.url)
         return self._content
 
-    def __bstree__(self):
-        if not self._bst:
-            self._bst = BeautifulSoup(self.content,"lxml")
-        return self._bst
+    def __document__(self):
+        if not self._document:
+            self._document = PyQuery(self.content.encode("utf8"))
+        return self._document
 
     def __links__(self):
         if self._links==None:
             lk=[]
-            urls = [a["href"] for a in self.bst.find_all("a") \
-                        if a["href"] and not a["href"].startswith("#")]
+            urls = [a.attr("href") for a in self.find("a[href]").items() \
+                        if not a.attr("href").startswith("#") ]
             for url in urls:
                 joined = urljoin(self.url,url)
                 if joined.startswith(("http","https")):
@@ -73,25 +81,33 @@ class ContentProxy(object):
             yield ("url",self.url)
             yield ("links",self.links)
             yield ("redirect_count",self.redirect_count)
-            yield ("data",self.data)
+            yield ("data",self._data)
         return iterator()
+
 
     def __getattr__(self,k):
         if k== "content":
             return self.__content__()
         elif k == "links":
             return self.__links__()
-        elif k == "bst":
-            return self.__bstree__()
+        elif k in ["scheme","path","netloc","query"]:
+            return getattr(self.splited_url,k)
         else:
             super(ContentProxy,self).__getattr__(k)
+
+    def find(self,qstr):
+        return self.__document__().find(qstr)
+
+    def data(self,k,v):
+        if isinstance(v,str): v= v.strip()
+        self._data[k] = v
 
 
 class Crawler(object):
     def __init__(self):
         super(Crawler, self).__init__()
         self.fetched_urls = set()
-        self.fetch_queue = []
+        self.fetch_queue = deque()
         self.save_queue = []
         self.handlers = {}
         self.interval = 1
@@ -163,7 +179,9 @@ class Crawler(object):
             self.fetch_queue.extend(urls)
 
     def append_to_save_queue(self,proxy):
-        self.save_queue.append(dict(proxy))
+        obj = dict(proxy)
+        if obj.get('data'):
+            self.save_queue.append(obj)
         if len(self.save_queue) > 200:
             self.save()
 
@@ -184,16 +202,31 @@ class Crawler(object):
 
     def crawl(self):
         if self.fetch_queue:
-            url = self.fetch_queue.pop()
-            self.process(url)
+            url = self.fetch_queue.popleft()
+            try:
+                self.process(url)
+            except Exception, e:
+                logger.error("handling url <%s> failed,error: %s" %(url,str(e)))
         else:
             self.__random_sleep()
 
-    def repeat_crawl(self):
+    def repeat_crawl(self,worker_number = None):
         while True:
+            if worker_number!=None:
+                logger.info("worker %d starts crawl" % worker_number)
             self.crawl()
 
     def spawn(self,worker=5):
-        workers = [gevent.spawn(self.repeat_crawl) for i in range(worker)]
-        gevent.joinall(workers)
-        
+        gevent.signal(signal.SIGTERM,self.exit)
+        workers = [gevent.spawn(self.repeat_crawl,i) for i in range(worker)]
+        try:
+            gevent.joinall(workers)
+        except KeyboardInterrupt:
+            logger.info("shuting down...")
+            gevent.killall(workers)
+            self.save()
+            sys.exit(0)
+            
+    def exit(self):
+        raise KeyboardInterrupt()
+
