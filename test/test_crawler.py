@@ -4,6 +4,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__),"../src/"))
 from qur.crawler import Crawler
 from dateutil import parser as datep
 
+import pymongo
+client = pymongo.MongoClient("dharma.mongohq.com",10012)
+db = pymongo.database.Database(client,'fetch_data')
+db.authenticate("","")
+
+
 crawler = Crawler()
 
 @crawler.handler_for("*","coolshell.cn")
@@ -50,9 +56,7 @@ def ruanyifeng(proxy):
 
 @crawler.save_handler
 def save(objects):
-    for obj in objects:
-        data = obj["data"]
-        print data["author"]
+    db.test_fetch.insert(objects)
 
 crawler.append_to_fetch_queue([
     'http://coolshell.cn/articles/3445.html',
