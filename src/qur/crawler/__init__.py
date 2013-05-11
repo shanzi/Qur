@@ -9,7 +9,7 @@ import logging,time,random,signal,sys
 import requests
 import gevent
 
-from urlparse import urlsplit,urljoin,urlunsplit
+from urlparse import urlsplit,urljoin,urlunsplit,parse_qs
 from collections import deque
 
 from pyquery import PyQuery
@@ -24,6 +24,8 @@ __MAX_FETCH_QUEUE_CAPACITY__=100000
 logging.basicConfig(level=logging.INFO)
 logger = logging
 
+
+
 class ContentProxy(object):
     def __init__(self, url):
         super(ContentProxy, self).__init__()
@@ -35,11 +37,17 @@ class ContentProxy(object):
         self._content=None
         self._document=None
         self._links=None
+        self._request_headers = {
+                'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Charset':'utf-8,q=0.9,*/*;q=0.8',
+                'Connection':'keep-alive',
+                'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31',
+                }
 
     def fetch(self,url):
         logger.info("fetching url: " + url)
         try:
-            res=requests.get(url,timeout=10)
+            res=requests.get(url,timeout=10,headers=self._request_headers)
         except Exception, e:
             logger.error("fetch error: %s",str(e))
             return False
@@ -90,7 +98,11 @@ class ContentProxy(object):
             return self.__content__()
         elif k == "links":
             return self.__links__()
-        elif k in ["scheme","path","netloc","query"]:
+        elif k == "body":
+            return self.find("body")
+        elif k == "query":
+            return parse_qs(self.splited_url.query)
+        elif k in ["scheme","path","netloc"]:
             return getattr(self.splited_url,k)
         else:
             super(ContentProxy,self).__getattr__(k)
@@ -130,7 +142,7 @@ class Crawler(object):
             return ret
 
     def __random_sleep(self):
-        delay = random.random() * 15
+        delay = self.interval + random.random() * 10
         gevent.sleep(delay)
 
     def get_handler_for(self,netloc):
@@ -197,8 +209,9 @@ class Crawler(object):
     def save(self):
         logger.info("saving: save queue length: " + str(len(self.save_queue)))
         if self._save_handler and self.save_queue:
-            self._save_handler(self.save_queue)
+            to_save = self.save_queue
             self.save_queue=[]
+            self._save_handler(to_save)
 
     def crawl(self):
         if self.fetch_queue:
