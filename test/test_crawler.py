@@ -5,9 +5,9 @@ from qur.crawler import Crawler
 from dateutil import parser as datep
 
 import pymongo
-client = pymongo.MongoClient("dharma.mongohq.com",10011)
-db = pymongo.database.Database(client,'fetch_data')
-db.authenticate("","")
+#client = pymongo.MongoClient("dharma.mongohq.com",10011)
+#db = pymongo.database.Database(client,'fetch_data')
+#db.authenticate("","")
 
 
 crawler = Crawler()
@@ -97,7 +97,7 @@ def linuxtoy(proxy):
         return True
     elif proxy.path.startswith("/category"):
         return True
-    elif proxy.path == "":
+    elif proxy.path == "" or proxy.path == "/":
         return True
     else: return False
 
@@ -132,22 +132,81 @@ def oschina(proxy):
     else:
         return False
 
+@crawler.handler_for("www","wired.com")
+def wired(proxy):
+    if re.compile(r"^/(reviews|gadgetlab)/\d{4}/\d{2}/.+").match(proxy.path):
+        post = proxy.find(".post")
+        title = post.find("h1").text()+ '-' + post.find("h2").text()
+        datetime_s = post.find(".entryDate").eq(0).text() + ' ' \
+                + post.find(".entryTime").eq(0).text()
+        tags = post.find(".entryCategories a").text()
+        if tags: tags = [s.strip for s in tags.split("&")]
+        else: tags = []
+        author = proxy.find("meta[name=Author]").attr("content")
+        datetime = datep.parse(datetime_s.replace('|',' '),fuzzy=True)
+        category = proxy.find("meta[name=Subsection]").attr("content").lower()
+        content = post.find(".entry").text()
+        post.remove()
+        side = proxy.body.text()
+
+        proxy.data("title",title)
+        proxy.data("tags",tags)
+        proxy.data("author",author)
+        proxy.data("category",category)
+        proxy.data("date",datetime)
+        proxy.data("content",content)
+        proxy.data("side",side)
+        
+        return True
+    elif proxy.path.startswith("/reviews") or proxy.path.startswith("/gadgetlab"):
+        return True
+    else:
+        return False
+
+
+@crawler.handler_for("www","36kr.com")
+def kr(proxy):
+    if proxy.path.startswith("/p/"):
+        proxy.log(type(proxy.content))
+        post = proxy.find(".entry-content")
+        title = post.find("h1.entry-title").text()
+        tags = [a.text() for a in post.find("a.tag").items()]
+        content = post.find(".mainContent").text()
+        category = proxy.find("ul.breadcrumb li a").eq(1).text()
+        author = post.find(".uname").eq(0).text()
+        date = datep.parse(post.find("abbr.timeago").attr("title"))
+        post.remove()
+        side = proxy.body.text()
+
+        proxy.data("title",title)
+        proxy.data("content",content)
+        proxy.data("category",category)
+        proxy.data("author",author)
+        proxy.data("date",date)
+        proxy.data("side",side)
+        proxy.data("tags",tags)
+
+    return True
+
+
 
 
 
 
 @crawler.save_handler
 def save(objects):
-    db.test_fetch.insert(objects)
-    #for obj in objects:
-    #    if obj.get("data"):
-    #        print obj["data"].get("author")
+    #db.test_fetch.insert(objects)
+    for obj in objects:
+        if obj.get("data"):
+            print obj.get('data').get("title")
 
 crawler.append_to_fetch_queue([
     #'http://coolshell.cn',
     #'http://www.ruanyifeng.com/blog/',
     'http://linuxtoy.org/',
-    'http://www.oschina.net/news/list?show=project',
+    #'http://www.oschina.net/news/list?show=project',
+    'http://www.wired.com/reviews/',
+    'http://www.36kr.com/p/203192.html',
     ])
 
 if __name__ == "__main__":

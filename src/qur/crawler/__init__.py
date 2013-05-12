@@ -37,9 +37,9 @@ class ContentProxy(object):
         self._content=None
         self._document=None
         self._links=None
+        self.encoding = "utf-8"
         self._request_headers = {
                 'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Charset':'utf-8,q=0.9,*/*;q=0.8',
                 'Connection':'keep-alive',
                 'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31',
                 }
@@ -57,8 +57,10 @@ class ContentProxy(object):
                         "fetched url:" + url + \
                         ", redirect count: " + str(len(res.history)) + \
                         ", response length:" + str(len(res.text)))
-                res.encoding = "utf8"
+                res.encoding = self.encoding
                 self._content=res.text
+                logger.debug(type(res.text))
+                logger.debug(res.text)
                 self.redirect_count=len(res.history)
 
     def __content__(self):
@@ -68,7 +70,7 @@ class ContentProxy(object):
 
     def __document__(self):
         if not self._document:
-            self._document = PyQuery(self.content.encode("utf8"))
+            self._document = PyQuery(self.content)
         return self._document
 
     def __links__(self):
@@ -113,6 +115,9 @@ class ContentProxy(object):
     def data(self,k,v):
         if isinstance(v,str): v= v.strip()
         self._data[k] = v
+
+    def log(self,string):
+        logger.info(string)
 
 
 class Crawler(object):
