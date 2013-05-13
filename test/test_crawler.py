@@ -140,7 +140,7 @@ def wired(proxy):
         datetime_s = post.find(".entryDate").eq(0).text() + ' ' \
                 + post.find(".entryTime").eq(0).text()
         tags = post.find(".entryCategories a").text()
-        if tags: tags = [s.strip for s in tags.split("&")]
+        if tags: tags = [s.strip() for s in tags.split("&")]
         else: tags = []
         author = proxy.find("meta[name=Author]").attr("content")
         datetime = datep.parse(datetime_s.replace('|',' '),fuzzy=True)
