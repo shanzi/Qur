@@ -31,7 +31,7 @@ def coolshell(proxy):
         content = post.find(".content")
         title = post.find("h2")
         striped_date = re.compile(r"\D+").sub('-',date.text())
-        tags = post.find("a[ref=tag]")
+        tags = post.find("a[rel=tag]")
 
         proxy.data("author",author.text())
         proxy.data("title",title.text())
@@ -188,6 +188,57 @@ def kr(proxy):
 
     return True
 
+@crawler.handler_for("www","appinn.com")
+def appinn(proxy):
+    if proxy.path=="/" or proxy.path =="" \
+            or proxy.path.startswith("/category"):
+        return True
+    else:
+        post = proxy.find(".post")
+        title = post.find(".entry-title").text()
+        author = post.find(".entry-meta a[rel=author]").eq(0).text()
+        date = datep.parse(post.find(".entry-meta cite").text())
+        tags = [a.text() for a in post.find(".entry-meta a[rel=tag]").items()]
+        target = [a.attr("href") for a in post.find("img.imgdown").nextAll("a[href]").items()]
+        content = post.find(".entry-content").text()
+        post.find(".entry-content").remove()
+        side = proxy.body.text()
+
+        proxy.data("title",title)
+        proxy.data("author",author)
+        proxy.data("date",date)
+        proxy.data("tags",tags)
+        proxy.data("target",target)
+        proxy.data("content",content)
+        proxy.data("side",side)
+
+        return True
+
+@crawler.handler_for("*","techcrunch.com")
+def techcrunch(proxy):
+    if re.compile("/?\d{4}/\d{2}/.+").match(proxy.path):
+        post = proxy.find("#module-post-detail")
+        title = post.find("h1.headline").text()
+        author = post.find(".author span.name").text()
+        category = proxy.find(".post-category-name").text()
+        tags = [a.text() for a in proxy.find("a[rel=tag]").items()]
+        content = post.find(".body-copy").text()
+        post.remove()
+        side = proxy.body.text()
+
+        proxy.data("title",title)
+        proxy.data("author",author)
+        proxy.data("tags",tags)
+        proxy.data("category",category)
+        proxy.data("content",content)
+        proxy.data("side",side)
+    return True
+
+
+
+
+
+
 
 
 
@@ -199,14 +250,20 @@ def save(objects):
     for obj in objects:
         if obj.get("data"):
             print obj.get('data').get("title")
+            print obj.get('data').get("author")
+            print obj.get('data').get("date")
+            print obj.get('data').get("category")
+            print obj.get('data').get("tags")
 
 crawler.append_to_fetch_queue([
     #'http://coolshell.cn',
     #'http://www.ruanyifeng.com/blog/',
-    'http://linuxtoy.org/',
+    #'http://linuxtoy.org/',
     #'http://www.oschina.net/news/list?show=project',
-    'http://www.wired.com/reviews/',
-    'http://www.36kr.com/p/203192.html',
+    #'http://www.wired.com/reviews/',
+    #'http://www.36kr.com/p/203192.html',
+    #'http://www.appinn.com/hamster-free-ebookconverter/'
+    'http://techcrunch.com/2013/05/14/blackberry-announces-q5-qwerty-bb10-smartphone-aimed-at-emerging-markets/'
     ])
 
 if __name__ == "__main__":
