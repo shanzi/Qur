@@ -17,9 +17,8 @@ from gevent import monkey
 monkey.patch_all()
 
 
-__MAX_FETCHED_URLS_CAPACITY__=10000
-__MAX_FETCH_QUEUE_CAPACITY__=100000
-
+__MAX_FETCHED_URLS_CAPACITY__=100000
+__MAX_FETCH_QUEUE_CAPACITY__=10000
 
 logging.basicConfig(level=logging.INFO)
 logger = logging
@@ -121,7 +120,7 @@ class ContentProxy(object):
 
 
 class Crawler(object):
-    def __init__(self):
+    def __init__(self,debug = False):
         super(Crawler, self).__init__()
         self.fetched_urls = set()
         self.fetch_queue = deque()
@@ -130,7 +129,10 @@ class Crawler(object):
         self.interval = 1
         self._default_handler = None
         self._save_handler = None
+        self._debug_save_handler = None
         self._timerecord={}
+        if debug : logging.basicConfig(level=logging.DEBUG)
+        self._debug = debug
 
     def __call_handler(self,handler,proxy):
         tr = self._timerecord.get(proxy.splited_url.netloc)
@@ -192,8 +194,9 @@ class Crawler(object):
             logger.warn("no handler for url : " + proxy.url)
 
     def append_to_fetch_queue(self,urls):
-        if len(self.fetch_queue)<__MAX_FETCHED_URLS_CAPACITY__:
+        if len(self.fetched_urls)< __MAX_FETCH_QUEUE_CAPACITY__:
             self.fetch_queue.extend(urls)
+            random.shuffle(self.fetch_queue)
 
     def append_to_save_queue(self,proxy):
         obj = dict(proxy)
@@ -203,7 +206,7 @@ class Crawler(object):
             self.save()
 
     def append_to_fetched_urls(self,urls):
-        if len(self.fetched_urls)> __MAX_FETCH_QUEUE_CAPACITY__:
+        if len(self.fetch_queue)>__MAX_FETCHED_URLS_CAPACITY__:
             self.fetched_urls.clear()
         self.fetched_urls.update(urls)
 
@@ -211,12 +214,19 @@ class Crawler(object):
         self._save_handler = fn
         return fn
 
+    def debug_save_handler(self,fn):
+        self._debug_save_handler = fn
+        return fn
+
     def save(self):
         logger.info("saving: save queue length: " + str(len(self.save_queue)))
         if self._save_handler and self.save_queue:
             to_save = self.save_queue
             self.save_queue=[]
-            self._save_handler(to_save)
+            if self._debug:
+                self._debug_save_handler(to_save)
+            else:
+                self._save_handler(to_save)
 
     def crawl(self):
         if self.fetch_queue:
@@ -224,7 +234,7 @@ class Crawler(object):
             try:
                 self.process(url)
             except Exception, e:
-                logger.error("handling url <%s> failed,error: %s" %(url,str(e)))
+                logger.error("crawl <%s> failed,error: %s" %(url,str(e)))
         else:
             self.__random_sleep()
 

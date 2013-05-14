@@ -5,12 +5,15 @@ from qur.crawler import Crawler
 from dateutil import parser as datep
 
 import pymongo
-#client = pymongo.MongoClient("dharma.mongohq.com",10011)
-#db = pymongo.database.Database(client,'fetch_data')
-#db.authenticate("","")
 
+DEBUG = True
 
-crawler = Crawler()
+if not DEBUG:
+    client = pymongo.MongoClient("dharma.mongohq.com",10011)
+    db = pymongo.database.Database(client,'fetch_data')
+    db.authenticate("","")
+
+crawler = Crawler(DEBUG)
 
 def parse_chinese_date(string):
     reg = re.compile(u'(\\d\\d\\d\\d)\u5e74(\\d{1,2})\u6708(\\d{1,2})\u65e5')
@@ -24,7 +27,7 @@ def parse_chinese_date(string):
 
 @crawler.handler_for("*","coolshell.cn")
 def coolshell(proxy):
-    if proxy.path.startswith("/articles"):
+    if re.compile(r"^/articles/\d+\.html").match(proxy.path):
         post=proxy.find(".post")
         date=post.find(".info span.date")
         author = post.find(".info span.author")
@@ -216,7 +219,7 @@ def appinn(proxy):
 
 @crawler.handler_for("*","techcrunch.com")
 def techcrunch(proxy):
-    if re.compile("/?\d{4}/\d{2}/.+").match(proxy.path):
+    if re.compile(r"/?\d{4}/\d{2}/.+").match(proxy.path):
         post = proxy.find("#module-post-detail")
         title = post.find("h1.headline").text()
         author = post.find(".author span.name").text()
@@ -246,7 +249,10 @@ def techcrunch(proxy):
 
 @crawler.save_handler
 def save(objects):
-    #db.test_fetch.insert(objects)
+    db.test_fetch.insert(objects)
+
+@crawler.debug_save_handler
+def debug_dave(objects):
     for obj in objects:
         if obj.get("data"):
             print obj.get('data').get("title")
@@ -262,8 +268,8 @@ crawler.append_to_fetch_queue([
     #'http://www.oschina.net/news/list?show=project',
     #'http://www.wired.com/reviews/',
     #'http://www.36kr.com/p/203192.html',
-    #'http://www.appinn.com/hamster-free-ebookconverter/'
-    'http://techcrunch.com/2013/05/14/blackberry-announces-q5-qwerty-bb10-smartphone-aimed-at-emerging-markets/'
+    'http://www.appinn.com/',
+    'http://techcrunch.com/',
     ])
 
 if __name__ == "__main__":
