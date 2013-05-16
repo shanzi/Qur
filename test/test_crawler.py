@@ -255,6 +255,8 @@ def solidot(proxy):
         proxy.data("side",side)
     elif proxy.path.startswith("/comments"):
         return False
+    elif proxy.path.startswith("/~"):
+        return False
 
     return True
 
@@ -278,6 +280,8 @@ def slashdot(proxy):
         proxy.data("content",content)
         proxy.data("side",side)
     elif proxy.path.startswith("/comments"):
+        return False
+    elif proxy.path.startswith("/~"):
         return False
 
     return True
