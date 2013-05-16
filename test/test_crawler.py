@@ -316,8 +316,8 @@ crawler.append_to_fetch_queue([
     #'http://www.36kr.com/p/203192.html',
     'http://www.appinn.com/',
     'http://techcrunch.com/',
-    'http://www.solidot.org/'
-    'http://www.slashdot.org/'
+    'http://www.solidot.org/',
+    'http://www.slashdot.org/',
     ])
 
 if __name__ == "__main__":
