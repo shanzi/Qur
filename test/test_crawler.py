@@ -238,7 +238,45 @@ def techcrunch(proxy):
     return True
 
 
+@crawler.handler_for("*","solidot.org")
+def solidot(proxy):
+    if proxy.path.startswith("/story"):
+        title = proxy.find(".bg_htit h2").text()
+        content = proxy.find(".p_mainnew").text()
+        date = parse_chinese_date(proxy.find(".talk_time").text())
 
+        proxy.find(".block_m").remove()
+
+        side = proxy.body.text()
+
+        proxy.data("title",title)
+        proxy.data("content",content)
+        proxy.data("date",date)
+        proxy.data("side",side)
+
+    return True
+
+@crawler.handler_for("*","slashdot.org")
+def slashdot(proxy):
+    if re.compile("^/story/\d{2}/\d{2}/\d{2}/\d+/.+").match(proxy.path):
+        title = proxy.find("h2.story span").text()
+        content = proxy.find(".body .p i").text()
+
+        proxy.find(".body .p i").remove()
+        author = proxy.find(".body .p").text().replace("writes","")
+        date = datep.parse(proxy.find("time").text(),fuzzy=True)
+        proxy.find("articles").remove()
+        side = proxy.body.text()
+        category = proxy.netloc.split(".")[0]
+
+        proxy.data("title",title)
+        proxy.data("author",author)
+        proxy.data("category",category)
+        proxy.data("date",date)
+        proxy.data("content",content)
+        proxy.data("side",side)
+
+    return True
 
 
 
@@ -270,6 +308,8 @@ crawler.append_to_fetch_queue([
     #'http://www.36kr.com/p/203192.html',
     'http://www.appinn.com/',
     'http://techcrunch.com/',
+    'http://www.solidot.org/'
+    'http://www.slashdot.org/'
     ])
 
 if __name__ == "__main__":
