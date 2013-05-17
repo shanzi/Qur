@@ -281,6 +281,8 @@ def slashdot(proxy):
         proxy.data("side",side)
     elif proxy.path.startswith("/comments"):
         return False
+    elif proxy.path.startswith("/video"):
+        return False
     elif proxy.path.startswith("/~"):
         return False
 
