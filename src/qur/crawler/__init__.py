@@ -196,7 +196,6 @@ class Crawler(object):
     def append_to_fetch_queue(self,urls):
         if len(self.fetched_urls)< __MAX_FETCH_QUEUE_CAPACITY__:
             self.fetch_queue.extend(urls)
-            random.shuffle(self.fetch_queue)
 
     def append_to_save_queue(self,proxy):
         obj = dict(proxy)
