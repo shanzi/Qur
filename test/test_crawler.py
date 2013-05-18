@@ -2,7 +2,9 @@ import os,sys,unittest,readline,re
 sys.path.append(os.path.join(os.path.dirname(__file__),"../src/"))
 
 from qur.crawler import Crawler
+from qur import GenericIndexer
 from dateutil import parser as datep
+import jieba
 
 import pymongo
 
@@ -316,12 +318,26 @@ crawler.append_to_fetch_queue([
     #'http://www.oschina.net/news/list?show=project',
     #'http://www.wired.com/reviews/',
     #'http://www.36kr.com/p/203192.html',
-    'http://www.appinn.com/',
-    'http://techcrunch.com/',
-    'http://www.solidot.org/',
-    'http://www.slashdot.org/',
+    #'http://www.appinn.com/',
+    #'http://techcrunch.com/',
+    #'http://www.solidot.org/',
+    #'http://www.slashdot.org/',
     ])
 
+def index():
+    gi = GenericIndexer(db,"test",jieba)
+    datas = db.test_fetch.find()
+    total = db.test_fetch.count()
+    indexed = 0
+    for data in datas:
+        gi.indexText(data["_id"],data["data"]["content"])
+        indexed+=1
+        print "indexed %d/%d (%f %)" % indexed,total,(float(indexed)/total *10)
+
+    print "finished" 
+
+
 if __name__ == "__main__":
-    crawler.spawn(1)
+    #crawler.spawn(1)
+
 
