@@ -325,6 +325,7 @@ crawler.append_to_fetch_queue([
     ])
 
 def index():
+    jieba.enable_parallel(4)
     gi = GenericIndexer(db,"test",jieba)
     datas = db.test_fetch.find()
     total = db.test_fetch.count()
@@ -339,5 +340,6 @@ def index():
 
 if __name__ == "__main__":
     #crawler.spawn(1)
+    index()
 
 
