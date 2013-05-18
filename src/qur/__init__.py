@@ -61,7 +61,10 @@ class GenericIndexer(DBStruct):
     def seperateWords(self,text):
         text = text.lower().strip()
         if self.word_cut:
-            sentences=__CN_WORD_CUT__.split(text.decode("utf8"))
+            if isinstance(sentences,unicode):
+                sentences=__CN_WORD_CUT__.split(text)
+            else:
+                sentences=__CN_WORD_CUT__.split(text.decode("utf8"))
             words=[]
             for s in sentences:
                 for w in self.word_cut.cut(s):
