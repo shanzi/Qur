@@ -4,7 +4,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__),"../src/"))
 from qur.crawler import Crawler
 from qur import GenericIndexer
 from dateutil import parser as datep
-import jieba
 
 import pymongo
 
@@ -324,22 +323,8 @@ crawler.append_to_fetch_queue([
     #'http://www.slashdot.org/',
     ])
 
-def index():
-    jieba.enable_parallel(4)
-    gi = GenericIndexer(db,"test",jieba)
-    datas = db.test_fetch.find()
-    total = db.test_fetch.count()
-    indexed = 0
-    for data in datas:
-        gi.indexText(data["_id"],data["data"]["content"])
-        indexed+=1
-        print "indexed %d/%d (%f %)" % indexed,total,(float(indexed)/total *10)
-
-    print "finished" 
-
 
 if __name__ == "__main__":
-    #crawler.spawn(1)
-    index()
+    crawler.spawn(1)
 
 
