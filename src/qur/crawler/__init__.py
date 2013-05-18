@@ -5,16 +5,16 @@
 # @date 2013-04-26
 
 
+from gevent import monkey; monkey.patch_all()
+import gevent
+
 import logging,time,random,signal,sys
 import requests
-import gevent
 
 from urlparse import urlsplit,urljoin,urlunsplit,parse_qs
 from collections import deque
 
 from pyquery import PyQuery
-from gevent import monkey
-monkey.patch_all()
 
 
 __MAX_FETCHED_URLS_CAPACITY__=100000
