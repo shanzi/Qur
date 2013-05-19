@@ -103,6 +103,7 @@ class GenericSearcher(DBStruct):
 
     def search(self,string):
         query = self.processSearchString(string)
+        print query
         ret   = self.relations.aggregate(
                 [{"$match":{"word":{"$in":query}}},
                 {"$group":{
@@ -110,8 +111,8 @@ class GenericSearcher(DBStruct):
                     "score":{"$sum":"$score"},
                     "matched_words":{"$addToSet":"$word"}
                     }},
-                {"$limit":100},
-                {"$sort":{"score":-1}}]);
+                {"$sort":{"score":-1}},
+                {"$limit":100}, ]);
         if ret["ok"]:
             return ret["result"]
         else:
