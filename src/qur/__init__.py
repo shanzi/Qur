@@ -12,7 +12,7 @@ import math,re,ignorewords
 from bson.code import Code
 
 __VERSION__ = (0,1)
-__EN_WORD_CUT__ = re.compile(r"\W*")
+__EN_WORD_CUT__ = re.compile(r"[^a-zA-Z]*")
 __CN_WORD_CUT__ = re.compile(ur"[^\u4E00-\u9FA5a-zA-Z0-9+#]+")
 __WORD_MIN_SCORE__ = 0.001
 __SEARCH_WORDS_LIMIT__ = 3
@@ -77,7 +77,8 @@ class GenericIndexer(DBStruct):
     def calculateWordScore(self,words):
         wordsdict = {}
         for w in words:
-            if w and len(w) > 20 :
+            if not w:continue
+            if len(w) > 20:
                 continue
             elif w in ignorewords.EN:
                 continue
