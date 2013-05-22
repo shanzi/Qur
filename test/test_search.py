@@ -7,7 +7,7 @@ import jieba
 
 def test_search():
     client = mongo_client.MongoClient()
-    db = client["fetch_data"]
+    db = client["test_database"]
     searcher = qur.GenericSearcher(
             db,
             name="test",
@@ -22,7 +22,7 @@ def test_search():
             print '-'*80
             for r in res:
                 entry_id=r["_id"]["entry_id"]
-                entry = db.test_fetch.find_one(entry_id)
+                entry = db.entries.find_one(entry_id)
                 if entry:
                     print "%2.5f %s" % (r["score"] , entry["url"])
                     print "Matched Words: ",", ".join(r["matched_words"])
