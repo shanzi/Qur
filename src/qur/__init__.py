@@ -12,8 +12,8 @@ import math,re,ignorewords
 from bson.code import Code
 
 __VERSION__ = (0,1)
-__EN_WORD_CUT__ = re.compile(r"\W*")
-__CN_WORD_CUT__ = re.compile(ur"^[\u4E00-\u9FA5a-zA-Z0-9+#]+")
+__EN_WORD_CUT__ = re.compile(r"[^a-zA-Z]*")
+__CN_WORD_CUT__ = re.compile(ur"[^\u4E00-\u9FA5a-zA-Z0-9+#]+")
 __WORD_MIN_SCORE__ = 0.001
 __SEARCH_WORDS_LIMIT__ = 3
 
@@ -61,7 +61,10 @@ class GenericIndexer(DBStruct):
     def seperateWords(self,text):
         text = text.lower().strip()
         if self.word_cut:
-            sentences=__CN_WORD_CUT__.split(text.decode("utf8"))
+            if isinstance(text,unicode):
+                sentences=__CN_WORD_CUT__.split(text)
+            else:
+                sentences=__CN_WORD_CUT__.split(text.decode("utf8"))
             words=[]
             for s in sentences:
                 for w in self.word_cut.cut(s):
@@ -74,14 +77,15 @@ class GenericIndexer(DBStruct):
     def calculateWordScore(self,words):
         wordsdict = {}
         for w in words:
-            if w and len(w) > 20 :
+            if not w:continue
+            if len(w) > 20:
                 continue
             elif w in ignorewords.EN:
                 continue
-            elif self.word_cut and w in ignorewords.CN:
+            elif w in ignorewords.CN:
                 continue
             elif wordsdict.get(w):
-                wordsdict[w]+=1
+                wordsdict[w] +=1
             else:
                 wordsdict[w] = 1
 
@@ -100,6 +104,7 @@ class GenericSearcher(DBStruct):
 
     def search(self,string):
         query = self.processSearchString(string)
+        print query
         ret   = self.relations.aggregate(
                 [{"$match":{"word":{"$in":query}}},
                 {"$group":{
@@ -107,8 +112,8 @@ class GenericSearcher(DBStruct):
                     "score":{"$sum":"$score"},
                     "matched_words":{"$addToSet":"$word"}
                     }},
-                {"$limit":100},
-                {"$sort":{"score":-1}}]);
+                {"$sort":{"score":-1}},
+                {"$limit":100}, ]);
         if ret["ok"]:
             return ret["result"]
         else:

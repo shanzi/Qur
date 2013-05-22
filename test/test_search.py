@@ -14,7 +14,7 @@ def test_search():
             word_cut=jieba
             )
     readline.parse_and_bind("")
-    for i in range(10):
+    while True:
         print "search test:"
         string = raw_input("> ")
         res = searcher.search(string)
@@ -23,9 +23,14 @@ def test_search():
             for r in res:
                 entry_id=r["_id"]["entry_id"]
                 entry = db.entries.find_one(entry_id)
-                print "%2.5f %s" % (r["score"] , entry["filename"])
-                print "Matched Words: ",", ".join(r["matched_words"])
-                print ""
+                if entry:
+                    print "%2.5f %s" % (r["score"] , entry["url"])
+                    print "Matched Words: ",", ".join(r["matched_words"])
+                    print ""
 
 if __name__=="__main__":
-    test_search()
+    try:
+        test_search()
+    except KeyboardInterrupt, e:
+        print "exiting"
+        exit(0)
