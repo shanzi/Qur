@@ -70,6 +70,7 @@ class ContentProxy(object):
     def __document__(self):
         if not self._document:
             self._document = PyQuery(self.content)
+            self._document.find("script").remove()
         return self._document
 
     def __links__(self):
@@ -88,7 +89,6 @@ class ContentProxy(object):
     def __iter__(self):
         def iterator():
             yield ("url",self.url)
-            yield ("links",self.links)
             yield ("redirect_count",self.redirect_count)
             yield ("data",self._data)
         return iterator()
@@ -219,12 +219,12 @@ class Crawler(object):
 
     def save(self):
         logger.info("saving: save queue length: " + str(len(self.save_queue)))
-        if self._save_handler and self.save_queue:
+        if self.save_queue:
             to_save = self.save_queue
             self.save_queue=[]
-            if self._debug:
+            if self._debug and self._debug_save_handler:
                 self._debug_save_handler(to_save)
-            else:
+            elif self.save_handler:
                 self._save_handler(to_save)
 
     def crawl(self):
