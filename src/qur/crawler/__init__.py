@@ -59,19 +59,21 @@ class ContentProxy(object):
                         ", response length:" + str(len(res.text)))
                 res.encoding = self.encoding
                 self._content=res.text
+                self.redirect_count=len(res.history)
                 logging.debug(type(res.text))
                 logging.debug(res.text)
-                self.redirect_count=len(res.history)
+                return True
 
     def __content__(self):
-        if not self._content:
-            self.fetch(self.url)
+        if not self._content: self.fetch(self.url)
         return self._content
 
     def __document__(self):
         if not self._document:
-            self._document = PyQuery(self.content)
-            self._document.find("script").remove()
+            content =  self.content
+            if content:
+                self._document = PyQuery(content)
+                self._document.find("script").remove()
         return self._document
 
     def __links__(self):

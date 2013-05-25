@@ -18,7 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__),"../src/"))
 from qur.crawler import Crawler
 from dateutil import parser as datep
 
-DEBUG = False
+DEBUG = True
 if not DEBUG:
     import pymongo
     from pymongo import MongoClient
@@ -59,6 +59,27 @@ def review_cnet(proxy):
     if proxy.netloc != "reviews.cnet.com" : return False
     else: return True
 
+
+@crawler.handler_for("www","pcworld.com")
+@crawler.handler_for("www","macworld.com")
+@crawler.handler_for("www","techhive.com")
+def techhive(proxy):
+    if re.compile(r"/article/\d+/.+\.html").match(proxy.path):
+        proxy.data("title",proxy.find("h1").text())
+        proxy.data("author",proxy.find("a[itemprop=author]").text())
+        proxy.data("datetime",datep.parse(proxy.find("li[itemprop=datePublished]").text()))
+        proxy.data("tags",[a.text() for a in proxy.find(".tags").items()])
+        proxy.data("content",proxy.find("section.page").text())
+        if proxy.find("div.review-navbar"):
+            proxy.data("category","review")
+        else:
+            proxy.data("category",proxy.find("a.topCatLink").text())
+
+    if proxy.netloc in ["www.techhive.com","www.macworld.com","www.pcworld.com"]:
+        return True
+    else: False
+
+
 @crawler.save_handler
 def save(tosave):
     db.test_fetch.insert(tosave)
@@ -75,16 +96,18 @@ def debug_save(objects):
             print data.get("tags")
 
 FETCH_URLS=[
-        "http://reviews.cnet.com/tablets/hisense-sero-7-lt/4505-3126_7-35771057.html",
         #"http://news.cnet.com",
-        #"http://reviews.cnet.com"
+        #"http://reviews.cnet.com",
+        "http://www.macworld.com/",
+        "http://www.pcworld.com/",
+        "http://www.techhive.com/",
         ]
 
     
 
 def main():
     crawler.append_to_fetch_queue(FETCH_URLS)
-    crawler.spawn(2)
+    crawler.spawn(3)
 
 if __name__=="__main__":
     main()
