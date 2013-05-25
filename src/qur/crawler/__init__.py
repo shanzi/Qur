@@ -20,7 +20,7 @@ from pyquery import PyQuery
 __MAX_FETCHED_URLS_CAPACITY__=100000
 __MAX_FETCH_QUEUE_CAPACITY__=10000
 
-logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
+logging.basicConfig(format='\033[36m%(asctime)s\033[0m - \033[4m%(levelname)s\033[0m : %(message)s',
         datefmt="%Y-%d-%m %H:%M:%S",
         level=logging.INFO)
 
