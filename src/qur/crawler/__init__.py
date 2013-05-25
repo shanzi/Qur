@@ -20,8 +20,9 @@ from pyquery import PyQuery
 __MAX_FETCHED_URLS_CAPACITY__=100000
 __MAX_FETCH_QUEUE_CAPACITY__=10000
 
-logging.basicConfig(level=logging.INFO)
-logger = logging
+logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
+        datefmt="%Y-%d-%m %H:%M:%S",
+        level=logging.INFO)
 
 
 
@@ -44,22 +45,22 @@ class ContentProxy(object):
                 }
 
     def fetch(self,url):
-        logger.info("fetching url: " + url)
+        logging.info("fetching url: " + url)
         try:
             res=requests.get(url,timeout=10,headers=self._request_headers)
         except Exception, e:
-            logger.error("fetch error: %s",str(e))
+            logging.error("fetch error: %s",str(e))
             return False
         else:
             if res.status_code == 200:
-                logger.info(
+                logging.info(
                         "fetched url:" + url + \
                         ", redirect count: " + str(len(res.history)) + \
                         ", response length:" + str(len(res.text)))
                 res.encoding = self.encoding
                 self._content=res.text
-                logger.debug(type(res.text))
-                logger.debug(res.text)
+                logging.debug(type(res.text))
+                logging.debug(res.text)
                 self.redirect_count=len(res.history)
 
     def __content__(self):
@@ -116,7 +117,7 @@ class ContentProxy(object):
         self._data[k] = v
 
     def log(self,string):
-        logger.info(string)
+        logging.info(string)
 
 
 class Crawler(object):
@@ -137,7 +138,7 @@ class Crawler(object):
     def __call_handler(self,handler,proxy):
         tr = self._timerecord.get(proxy.splited_url.netloc)
         if tr and (time.time()-tr) < self.interval:
-            logger.info("fetch frequency control: " + proxy.splited_url.netloc)
+            logging.info("fetch frequency control: " + proxy.splited_url.netloc)
             self.__random_sleep()
             if not proxy.url in self.fetched_urls:
                 self.append_to_fetched_urls([proxy.url,])
@@ -185,13 +186,13 @@ class Crawler(object):
 
         handler = self.get_handler_for(proxy.splited_url.netloc)
         if handler:
-            logger.info("processing url: "+url)
+            logging.info("processing url: "+url)
             if self.__call_handler(handler,proxy):
                 self.append_to_fetch_queue(proxy.links)
                 self.append_to_save_queue(proxy)
                 self.append_to_fetched_urls([proxy.url,])
         else:
-            logger.warn("no handler for url : " + proxy.url)
+            logging.warn("no handler for url : " + proxy.url)
 
     def append_to_fetch_queue(self,urls):
         if len(self.fetched_urls)< __MAX_FETCH_QUEUE_CAPACITY__:
@@ -218,7 +219,7 @@ class Crawler(object):
         return fn
 
     def save(self):
-        logger.info("saving: save queue length: " + str(len(self.save_queue)))
+        logging.info("saving: save queue length: " + str(len(self.save_queue)))
         if self.save_queue:
             to_save = self.save_queue
             self.save_queue=[]
@@ -233,14 +234,14 @@ class Crawler(object):
             try:
                 self.process(url)
             except Exception, e:
-                logger.error("crawl <%s> failed,error: %s" %(url,str(e)))
+                logging.error("crawl <%s> failed,error: %s" %(url,str(e)))
         else:
             self.__random_sleep()
 
     def repeat_crawl(self,worker_number = None):
         while True:
             if worker_number!=None:
-                logger.info("worker %d starts crawl" % worker_number)
+                logging.info("worker %d starts crawl" % worker_number)
             self.crawl()
 
     def spawn(self,worker=5):
@@ -249,7 +250,7 @@ class Crawler(object):
         try:
             gevent.joinall(workers)
         except KeyboardInterrupt:
-            logger.info("shuting down...")
+            logging.info("shuting down...")
             gevent.killall(workers)
             self.save()
             sys.exit(0)
