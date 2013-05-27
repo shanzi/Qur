@@ -80,6 +80,25 @@ def techhive(proxy):
     else: False
 
 
+@crawler.handler_for("www","maclife.com")
+def maclife(proxy):
+    match= re.compile(r"/article/(\w+)/.+").match(proxy.path)
+    if match:
+        proxy.data("title",proxy.find("h1.title_smaller").text())
+        proxy.data("author", proxy.find("span.posted_by").text()[4:])
+        proxy.data("datetime",
+                    datep.parse(
+                        proxy.find("span.posted_date").text()[7:],
+                        fuzzy=True
+                        )
+                    )
+        proxy.data("tags",
+                   [a.text() for a in proxy.find("a[rel=tag]").items()])
+        proxy.data("category",match.groups()[0])
+        proxy.data("content",proxy.find("div.node_article p").text())
+    return True
+
+
 @crawler.save_handler
 def save(tosave):
     db.test_fetch.insert(tosave)
@@ -94,20 +113,25 @@ def debug_save(objects):
             print data.get("datetime")
             print data.get("category")
             print data.get("tags")
+            print "len of content: %d" % len(data.get("content"))
 
 FETCH_URLS=[
         #"http://news.cnet.com",
         #"http://reviews.cnet.com",
-        "http://www.macworld.com/",
-        "http://www.pcworld.com/",
-        "http://www.techhive.com/",
+        #"http://www.macworld.com/",
+        #"http://www.pcworld.com/",
+        #"http://www.techhive.com/",
+        "http://www.maclife.com/"
         ]
 
     
 
 def main():
     crawler.append_to_fetch_queue(FETCH_URLS)
-    crawler.spawn(3)
+    if DEBUG:
+        crawler.spawn(1)
+    else:
+        crawler.spawn(len(FETCH_URLS))
 
 if __name__=="__main__":
     main()
