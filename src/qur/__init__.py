@@ -10,12 +10,14 @@
 
 import math,re,ignorewords
 from bson.code import Code
+from Stemmer import Stemmer
 
 __VERSION__ = (0,1)
 __EN_WORD_CUT__ = re.compile(r"[^a-zA-Z]*")
 __CN_WORD_CUT__ = re.compile(ur"[^\u4E00-\u9FA5a-zA-Z0-9+#]+")
 __WORD_MIN_SCORE__ = 0.001
 __SEARCH_WORDS_LIMIT__ = 3
+__STEMMER__ = Stemmer("english")
 
 
 def versionstring():
@@ -46,7 +48,8 @@ class GenericIndexer(DBStruct):
 
     def indexText(self,entry_id,text):
         words = self.seperateWords(text)
-        scores = self.calculateWordScore(words)
+        stemmed_words = __STEMMER__.stemWords(words)
+        scores = self.calculateWordScore(stemed_words)
         inserts =[]
         for w,s in scores:
             self.words.update(
@@ -104,9 +107,9 @@ class GenericSearcher(DBStruct):
 
     def search(self,string):
         query = self.processSearchString(string)
-        print query
+        stemmed_query = __STEMMER__.stemWords(query)
         ret   = self.relations.aggregate(
-                [{"$match":{"word":{"$in":query}}},
+                [{"$match":{"word":{"$in":stemmed_query}}},
                 {"$group":{
                     "_id":{"entry_id":"$entry_id"},
                     "score":{"$sum":"$score"},
