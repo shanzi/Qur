@@ -22,8 +22,8 @@ DEBUG = True
 if not DEBUG:
     import pymongo
     from pymongo import MongoClient
-    client = MongoClient("dharma.mongohq.com",10012)
-    db = pymongo.database.Database(client,"fetch_data")
+    client = MongoClient("dharma.mongohq.com")
+    db = pymongo.database.Database(client,"database")
     db.authenticate("","")
     
 
@@ -116,11 +116,11 @@ def debug_save(objects):
             print "len of content: %d" % len(data.get("content"))
 
 FETCH_URLS=[
-        #"http://news.cnet.com",
-        #"http://reviews.cnet.com",
-        #"http://www.macworld.com/",
-        #"http://www.pcworld.com/",
-        #"http://www.techhive.com/",
+        "http://news.cnet.com",
+        "http://reviews.cnet.com",
+        "http://www.macworld.com/",
+        "http://www.pcworld.com/",
+        "http://www.techhive.com/",
         "http://www.maclife.com/"
         ]
 
